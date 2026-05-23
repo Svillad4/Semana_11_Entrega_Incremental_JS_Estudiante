@@ -15,19 +15,36 @@
 const STORAGE_KEY = "semana11_inscripciones_incremento";
 let inscripciones = [];
 
-// ERROR INTENCIONAL: algunos identificadores no coinciden con el HTML.
-const form = document.getElementById("formulario-inscripcion");
+// Referencias a elementos del DOM (ids según index.html)
+const form = document.getElementById("form-inscripcion");
 const btnLimpiar = document.getElementById("btn-limpiar");
 const btnBorrarTodo = document.getElementById("btn-borrar-todo");
-const mensaje = document.getElementById("mensajes");
+const mensaje = document.getElementById("mensaje");
 const tabla = document.getElementById("tabla-inscripciones");
 const totalInscritos = document.getElementById("total-inscritos");
 const totalValidos = document.getElementById("total-validos");
 const totalPendientes = document.getElementById("total-pendientes");
 const tallerPopular = document.getElementById("taller-popular");
+const btnModoOscuro = document.getElementById("btn-modo-oscuro");
+const DARK_MODE_KEY = "semana11_modo_oscuro";
 
-if (document.body.dataset.page !== "tests") {
-  document.addEventListener("DOMContentLoaded", iniciarAplicacion);
+document.addEventListener("DOMContentLoaded", iniciarAplicacion);
+
+function cargarPreferenciaModoOscuro() {
+  return localStorage.getItem(DARK_MODE_KEY) === "true";
+}
+
+function aplicarModoOscuro(activo) {
+  document.body.classList.toggle("dark-mode", activo);
+  if (btnModoOscuro) {
+    btnModoOscuro.textContent = activo ? "Modo claro" : "Modo oscuro";
+  }
+}
+
+function alternarModoOscuro() {
+  const activo = !document.body.classList.contains("dark-mode");
+  aplicarModoOscuro(activo);
+  localStorage.setItem(DARK_MODE_KEY, activo);
 }
 
 function iniciarAplicacion() {
@@ -35,29 +52,31 @@ function iniciarAplicacion() {
   renderizarTabla();
   actualizarResumen();
 
-  // ERROR INTENCIONAL: si form es null, este punto falla.
-  form.addEventListener("submit", manejarEnvio);
+  if (form) form.addEventListener("submit", manejarEnvio);
 
-  // ERROR INTENCIONAL: la funcion se ejecuta de inmediato en lugar de quedar como callback.
-  btnLimpiar.addEventListener("click", limpiarFormulario());
+  if (btnLimpiar) btnLimpiar.addEventListener("click", limpiarFormulario);
 
   if (btnBorrarTodo) {
     btnBorrarTodo.addEventListener("click", borrarTodo);
   }
+
+  if (btnModoOscuro) {
+    btnModoOscuro.addEventListener("click", alternarModoOscuro);
+  }
+
+  aplicarModoOscuro(cargarPreferenciaModoOscuro());
 }
 
 function manejarEnvio(evento) {
-  // ERROR INTENCIONAL: sin preventDefault el formulario puede recargar la pagina.
-  // evento.preventDefault();
+  evento.preventDefault();
 
   const registro = leerFormulario();
   const errores = validarInscripcion(registro);
 
-  // ERROR INTENCIONAL: el flujo esta invertido. Guarda cuando hay errores.
-  if (errores.length > 0) {
+  if (errores.length === 0) {
     guardarRegistro(registro);
     mostrarMensaje("Inscripcion guardada correctamente.", "exito");
-    form.reset();
+    if (form) form.reset();
   } else {
     mostrarMensaje(errores.join(" | "), "error");
   }
@@ -66,10 +85,8 @@ function manejarEnvio(evento) {
 function leerFormulario() {
   return {
     nombre: document.getElementById("nombre").value.trim(),
-    // ERROR INTENCIONAL: el valor del input queda como texto. Debe convertirse a numero.
-    edad: document.getElementById("edad").value,
-    // ERROR INTENCIONAL: el id real del HTML es telefono, no celular.
-    telefono: document.getElementById("celular").value.trim(),
+    edad: Number(document.getElementById("edad").value),
+    telefono: document.getElementById("telefono").value.trim(),
     correo: document.getElementById("correo").value.trim(),
     taller: document.getElementById("taller").value,
     jornada: document.getElementById("jornada").value,
@@ -84,18 +101,16 @@ function validarInscripcion(registro) {
     errores.push("El nombre debe tener al menos 3 caracteres.");
   }
 
-  // ERROR INTENCIONAL: condicion invertida.
-  if (registro.edad >= 12) {
+  if (!registro.edad || registro.edad < 12) {
     errores.push("La edad debe ser de 12 anos o mas.");
   }
 
-  // ERROR INTENCIONAL: debe fallar si NO son 10 digitos O si contiene letras.
-  if (registro.telefono.length !== 10 && !/^\d+$/.test(registro.telefono)) {
+  if (registro.telefono.length !== 10 || !/^\d+$/.test(registro.telefono)) {
     errores.push("El telefono debe tener exactamente 10 digitos numericos.");
   }
 
-  // ERROR INTENCIONAL: debe validar que exista @ y punto. La condicion actual permite casos invalidos.
-  if (!registro.correo.includes("@") && !registro.correo.includes(".")) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(registro.correo)) {
     errores.push("El correo electronico debe tener un formato valido.");
   }
 
@@ -103,8 +118,7 @@ function validarInscripcion(registro) {
     errores.push("Debe seleccionar un taller.");
   }
 
-  // ERROR INTENCIONAL: propiedad mal escrita. El objeto usa acepta, no acepto.
-  if (registro.acepto !== true) {
+  if (registro.acepta !== true) {
     errores.push("Debe confirmar que los datos son correctos.");
   }
 
@@ -113,7 +127,8 @@ function validarInscripcion(registro) {
 
 function obtenerDescripcionTaller(taller) {
   switch (taller) {
-    // ERROR INTENCIONAL: el valor real del select es web, no programacion.
+    case "web":
+      return "Programacion web: HTML, CSS, JavaScript y depuracion.";
     case "programacion":
       return "Programacion web: HTML, CSS, JavaScript y depuracion.";
     case "huerta":
@@ -137,8 +152,7 @@ function guardarRegistro(registro) {
 
   inscripciones.push(nuevoRegistro);
 
-  // ERROR INTENCIONAL: variable mal escrita. Debe guardar inscripciones.
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(inscripcion));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(inscripciones));
 
   renderizarTabla();
   actualizarResumen();
@@ -165,9 +179,10 @@ function renderizarTabla() {
     return;
   }
 
-  // ERROR INTENCIONAL: el ciclo se pasa una posicion y produce item undefined.
-  for (let i = 0; i <= inscripciones.length; i++) {
+  // Iterar solo hasta la longitud - 1
+  for (let i = 0; i < inscripciones.length; i++) {
     const item = inscripciones[i];
+    if (!item) continue;
     const fila = document.createElement("tr");
     fila.innerHTML = `
       <td>${item.nombre}</td>
@@ -186,7 +201,7 @@ function actualizarResumen() {
   if (!totalInscritos) return;
 
   totalInscritos.textContent = inscripciones.length;
-  totalValidos.textContent = inscripciones.filter((item) => item.edad > 12).length;
+  totalValidos.textContent = inscripciones.filter((item) => Number(item.edad) >= 12).length;
   // ERROR INTENCIONAL: pendiente no significa taller vacio; esto debe ajustarse al criterio del proyecto.
   totalPendientes.textContent = inscripciones.filter((item) => item.taller === "").length;
   tallerPopular.textContent = obtenerTallerPopular(inscripciones);
@@ -214,16 +229,18 @@ function obtenerTallerPopular(lista = inscripciones) {
 }
 
 function mostrarMensaje(texto, tipo = "info") {
+  if (!mensaje) return;
   mensaje.textContent = texto;
   mensaje.className = `message ${tipo}`;
 }
 
 function limpiarFormulario() {
-  form.reset();
+  if (form) form.reset();
   mostrarMensaje("Formulario limpio. Continue con una nueva prueba.", "info");
 }
 
 function eliminarRegistro(id) {
+  if (!confirm("Desea eliminar este registro?")) return;
   inscripciones = inscripciones.filter((item) => item.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(inscripciones));
   renderizarTabla();
